@@ -1,0 +1,55 @@
+name: Build PrecisionMouseFilter.exe
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      # Puts cl.exe/link.exe/nmake on PATH for this job by running the
+      # matching vcvarsall.bat under the hood. This makes the build
+      # independent of whichever Visual Studio "generator" name CMake's
+      # vswhere-based detection happens to find (or fail to find) on the
+      # runner image -- Ninja + cl.exe on PATH just works regardless.
+      - name: Configurar ambiente MSVC (x64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configurar CMake (preset ninja-release)
+        run: cmake --preset ninja-release
+
+      - name: Compilar (preset ninja-release)
+        run: cmake --build --preset ninja-release
+
+      - name: Verificar artefato
+        shell: pwsh
+        run: |
+          $exe = "out/build/ninja-release/bin/PrecisionMouseFilter.exe"
+          if (Test-Path $exe) {
+            Write-Output "Build successful: $exe found"
+          } else {
+            Write-Output "Executavel nao encontrado no caminho esperado; listando out/build:"
+            Get-ChildItem -Path "out/build" -Recurse -Include "*.exe"
+            exit 1
+          }
+
+      - name: Publicar o .exe como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrecisionMouseFilter
+          path: out/build/ninja-release/bin/PrecisionMouseFilter.exe
+          if-no-files-found: error
